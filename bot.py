@@ -168,4 +168,9 @@ def main():
     app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    import traceback
+    try:
+        main()
+    except Exception as e:
+        print(f"CRASH: {e}")
+        traceback.print_exc()
