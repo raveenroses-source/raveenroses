@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
-print("Starting bot...", flush=True)
+print("Starting bot v2...", flush=True)
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
 def get_countries():
