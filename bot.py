@@ -9,63 +9,53 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 print("Starting bot...", flush=True)
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
-async def get_countries():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
-        await page.goto("https://quackr.io/temporary-numbers", wait_until="networkidle")
-        links = await page.query_selector_all("a[href*='/temporary-numbers/']")
-        countries = []
-        seen = set()
-        for a in links:
-            href = await a.get_attribute("href") or ""
-            name = (await a.inner_text()).strip()
-            code = href.split("/temporary-numbers/")[-1].strip("/")
-            if code and name and not name.startswith("+") and code not in seen:
-                seen.add(code)
-                countries.append({"country": name, "code": code})
-        await browser.close()
-        return countries
+def get_countries():
+    res = requests.get("https://quackr.io/temporary-numbers", headers=HEADERS, timeout=15)
+    soup = BeautifulSoup(res.text, "html.parser")
+    countries = []
+    seen = set()
+    for a in soup.select("a[href*='/temporary-numbers/']"):
+        href = a.get("href", "")
+        name = a.get_text(strip=True)
+        code = href.split("/temporary-numbers/")[-1].strip("/")
+        if code and name and len(name) > 1 and not name.startswith("+") and code not in seen:
+            seen.add(code)
+            countries.append({"country": name, "code": code})
+    return countries
 
-async def get_numbers_for_country(country_code):
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
-        await page.goto(f"https://quackr.io/temporary-numbers/{country_code}", wait_until="networkidle")
-        links = await page.query_selector_all("a[href*='/temporary-numbers/']")
-        numbers = []
-        for a in links:
-            text = (await a.inner_text()).strip()
-            href = await a.get_attribute("href") or ""
-            if text.startswith("+"):
-                numbers.append({"number": text, "href": href})
-        await browser.close()
-        return numbers
+def get_numbers_for_country(country_code):
+    url = f"https://quackr.io/temporary-numbers/{country_code}"
+    res = requests.get(url, headers=HEADERS, timeout=15)
+    soup = BeautifulSoup(res.text, "html.parser")
+    numbers = []
+    for a in soup.select("a[href*='/temporary-numbers/']"):
+        text = a.get_text(strip=True)
+        if text.startswith("+"):
+            numbers.append({"number": text})
+    return numbers
 
 
-async def get_messages(number):
+def get_messages(number):
     clean = number.replace("+", "").replace(" ", "")
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
-        await page.goto(f"https://quackr.io/temporary-numbers/{clean}", wait_until="networkidle")
-        rows = await page.query_selector_all("table tr")
-        messages = []
-        for row in rows:
-            cols = await row.query_selector_all("td")
-            if len(cols) >= 3:
-                messages.append({
-                    "sender": (await cols[0].inner_text()).strip(),
-                    "message": (await cols[1].inner_text()).strip(),
-                    "time": (await cols[2].inner_text()).strip(),
-                })
-        await browser.close()
-        return messages
+    url = f"https://quackr.io/temporary-numbers/{clean}"
+    res = requests.get(url, headers=HEADERS, timeout=15)
+    soup = BeautifulSoup(res.text, "html.parser")
+    messages = []
+    for row in soup.select("table tr"):
+        cols = row.find_all("td")
+        if len(cols) >= 3:
+            messages.append({
+                "sender": cols[0].get_text(strip=True),
+                "message": cols[1].get_text(strip=True),
+                "time": cols[2].get_text(strip=True),
+            })
+    return messages
+
 
 async def list_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Fetching numbers, please wait...")
     try:
-        data = await get_countries()
+        data = get_countries()
         if not data:
             await update.message.reply_text("No countries found. Try again.")
             return
@@ -83,7 +73,7 @@ async def country_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     country_code = query.data.split(":")[1]
     try:
-        numbers = await get_numbers_for_country(country_code)
+        numbers = get_numbers_for_country(country_code)
         if not numbers:
             await query.edit_message_text("No numbers found for this country.")
             return
@@ -102,7 +92,7 @@ async def get_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.message.reply_text(f"Checking SMS for {number}...")
     try:
-        messages = await get_messages(number)
+        messages = get_messages(number)
         if not messages:
             await update.message.reply_text("No messages yet. Try again soon.")
         else:
@@ -123,7 +113,7 @@ async def watch_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for _ in range(24):
         await asyncio.sleep(5)
         try:
-            messages = await get_messages(number)
+            messages = get_messages(number)
             for msg in messages:
                 key = (msg.get("sender"), msg.get("time"))
                 if key not in seen:
