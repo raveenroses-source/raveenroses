@@ -6,7 +6,7 @@ from playwright.async_api import async_playwright
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
-BOT_TOKEN = os.environ.get("8827534972:AAEY5Ov0dc4AjbgaMbiDv1J3Llbtabx-33A")
+BOT_TOKEN = os.environ.get("8885252145:AAHc_jHyv9CkYX6Ii_v7l4nIQkwCHTRlOdo")
 
 async def get_countries():
     async with async_playwright() as p:
