@@ -6,6 +6,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
 print("Starting bot v2...", flush=True)
+HEADERS = {"User-Agent": "Mozilla/5.0"}
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
 def get_countries():
